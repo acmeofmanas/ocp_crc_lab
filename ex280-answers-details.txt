@@ -1,0 +1,231 @@
+#1
+
+oc login -u kubeadmin -p <password-given> http://url-given-in-exam
+yum install httpd-tools httpd-utils
+
+htpasswd -c -B -b myusers bob redhat
+htpasswd -b myusers john john123
+
+oc create secret generic myusers --from-file htpasswd=myusers -n openshift-config
+oc get secret -n openshift-config
+oc adm policy add-cluster-role-to-user cluster-admin bob
+oc get oauth cluster -o yaml > oauth.yaml
+vim oauth.yaml
+
+spec:
+  identityProviders:
+  - name: name-given
+    mappingMethod: claim
+    type: HTPasswd
+    htpasswd:
+      fileData:
+        name: myusers
+
+oc replace -f oauth.yaml
+
+oc login -u bob -p redhat
+  ##run commands - oc get nodes | oc get pv
+  ##if you are getting output, all is well
+
+oc describe clusterrolebinding | grep self
+oc adm policy remove-cluster-role-from-group self-provisioner system:authenticated:oauth
+
+
+
+
+
+#2
+
+oc new-project apollo
+oc new-project test
+oc new-project demo
+oc adm policy add-cluster-role-to-user cluster-admin bob
+oc describe clusterrolebinding | grep self
+oc adm policy remove-cluster-role-from-group self-provisioners system:authenticated:oauth
+oc adm policy add-cluster-role-to-user self-provisioner john
+oc policy add-role-to-user view natasha -n apollo
+oc policy add-role-to-user view natasha -n test
+
+oc login -u bob -p password
+<you should be able to login, Run "oc get nodes" command to verify
+
+oc delete secret kubeadmin -n kube-system
+### remove this only when you are sure that bob is able to login and do cluster admin jobs
+
+#3
+
+oc adm group --help
+oc adm group new groupone
+oc adm group new grouptwo
+oc adm group add-users groupone username
+oc adm group add-users grouptwo username
+oc get groups
+oc policy add-role-to-group view groupone -n test
+oc policy add-role-to-group edit grouptwo -n demo
+
+#4
+
+oc project rocky
+oc create quota --help
+oc create quota quotaname --hard pod=3,cpu=4,services=6,memory=3Gi
+oc describe quota quotaname
+oc describe project rocky
+
+#5
+oc project rocky
+
+
+
+vim limit-range.yml
+----
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: limit-rocky
+  namespace: rocky
+spec:
+  limits:
+    - type: Pod
+      max:
+        cpu: 
+        memory:
+      min:
+        cpu: 
+        memory:
+    - type: Container
+      default:
+        cpu:
+        memory:
+      max:
+        cpu: 
+        memory:
+      min:
+        cpu:
+        memory:
+        
+----
+oc create -f limit-range.yml
+oc describe project rocky
+
+#6
+oc project projectname
+oc status
+ <take a close look at deployment name, service name etc>
+oc get nodes
+<remove all TAINTS from all worker nodes>
+oc get pods
+
+oc describe pod podname  ## there will be a toleration
+oc get pods
+    ## pod will be in running state after taint is removed
+oc get route
+    ## try to access application using the route name, if not working
+        delete existing route and create new route
+oc expose service/service-name --hostname=<if any specific name is given>
+
+Check again you must be able to access application
+
+#7
+
+oc project projectname
+oc status
+oc get pods
+oc scale --help
+oc scale --replicas 4 deployment/deployment-name
+oc get pods
+oc get route
+    ## try accessing the application if working fine, else
+    delete route and create again
+oc expose service/service-name --hostname=<if any name is given>
+If no hostname given, then
+oc expose service/service-name
+
+#8
+oc project projectname
+oc status
+oc set resources --help
+oc set resources deployment/deploymentname --request cpu=10m,memory=10Mi
+oc autoscale --help
+oc autoscale deployment deploymentname --min 2 --max 5 --cpu-percent 50
+oc get hpa
+oc get route
+    #try accessing the application usign route name, if not accessible
+    delete the route and create new
+oc expose service/service-name --hostname <route-name-if-given>
+else
+oc expose service/service-name
+
+#9
+
+oc project projectname
+oc create secret generic --help
+oc create secret generic ex280-secret --from-literal keyname=valuename
+oc get secrets
+
+#10
+
+oc project projectname
+oc status
+oc get pods
+oc describe pod pod-name
+oc set env --help
+oc set env deployment/deploymentname --from secret/secretname
+oc get pods
+oc get route
+    ## try to access application using route name, if not working, then
+    delete route and create again
+oc expose service/service-name --hostname <if asked>
+
+
+#11
+
+oc project projectname
+oc status
+oc get pods
+man req
+openssl req -x509 -newkey rsa:4096 -keyout projectname.key -out projectname.crt -days 365 -nodes -subj "<paste the value given in exam>"
+convert it to CSR
+pass the value in the pod via Pass through Route
+
+oc create route edge --help
+
+oc get route
+
+    ##try accessing the application on route name
+    
+#12
+
+oc project projectname
+oc create sa project-sa
+oc set adm policy add-scc-to-user anyuid -z project-sa
+
+#13
+oc project projectname
+oc status
+oc get pods
+oc describe pod/pod-name
+    ## check labels
+oc describe service
+    ## check endpoint and selector
+    ## selector in service is not matching with label in deployment
+oc edit service service-name
+    ## change value of selector - matching the deployment
+oc describe service
+    ## it must show endpoint now
+oc get route
+    ## try accessing application on route name, if not working
+    ## delete route and create new route
+oc expose service/service-name --hostname <if mentioned in exam>
+
+#14
+
+
+
+
+
+
+
+        
+        
+
+
